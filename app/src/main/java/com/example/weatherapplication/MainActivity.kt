@@ -1,6 +1,5 @@
 package com.example.weatherapplication
 
-import android.app.DownloadManager.Request
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -8,26 +7,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -39,28 +33,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
-import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.example.weatherapplication.models.WeatherModel
 import org.json.JSONObject
-import kotlin.math.log
 
 val comfortaaBold = FontFamily(
     Font(R.font.comfortaa_bold)
@@ -74,7 +59,8 @@ val comfortaaMedium = FontFamily(
 
 val mainColor = "#fcfcfc".toColor()
 val btnCityColor = "#85d249".toColor()
-val menuColor = "#e4e4e4".toColor()
+val customGrayColor = "#e4e4e4".toColor()
+val cardBackGroundColor = "#d3d3d3".toColor()
 
 val API_KEY = "36001eaeaf8d4697a29115746230910"
 val citiesList = listOf<String>(
@@ -167,7 +153,7 @@ fun citySelector(context: Context) {
                 onDismissRequest = { menuState.value = !menuState.value },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(menuColor),
+                    .background(customGrayColor),
             ) {
                 citiesList.forEach { item ->
                     DropdownMenuItem(
@@ -251,7 +237,7 @@ fun weatherForecastArea(city: MutableState<String>, context: Context) {
                         .fillParentMaxHeight()
                         .fillParentMaxWidth()
                 ) {
-                    currentWeatherForecastCard(city, context)
+                    daysWeatherForecast(city, context)
                 }
             }
         }
@@ -261,87 +247,135 @@ fun weatherForecastArea(city: MutableState<String>, context: Context) {
 @Composable
 fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
     var weatherObject = getResult(city, context)
-    Card(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(5.dp)
-    ) {
-        Row(modifier = Modifier
-            .padding(top = 5.dp)
-            .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            AsyncImage(model = "https:", contentDescription = "Weather_icon",
-                modifier = Modifier.size(30.dp))
-        }
-        Row(
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .clip(shape = RoundedCornerShape(10.dp))
+        .background(cardBackGroundColor)){
+        Card(
             modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .padding(10.dp),
+            colors = CardDefaults.cardColors(containerColor = customGrayColor)
         ) {
-            Text(text = "Температура сейчас:")
-            Text(text = "${weatherObject?.currentTemp}°C")
-        }
-        Row(
-            modifier = Modifier
-                .padding(10.dp)
+            Row(modifier = Modifier
+                .padding(top = 5.dp)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = "Погодные условия:")
-            Text(text = "$")
-        }
-        Row(
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = "Направление ветра:")
-            Text(text = "$")
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                AsyncImage(model = "https:", contentDescription = "Weather_icon",
+                    modifier = Modifier.size(90.dp))
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(text = "30°C", style = TextStyle(
+                    fontFamily = comfortaaBold,
+                    fontSize = 26.sp
+                ))
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                comfortaaMediumText(text = "Погодные условия:")
+                comfortaaMediumText(text = "знач.")
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                comfortaaMediumText(text = "Направление ветра:")
+                comfortaaMediumText(text = "знач.")
+            }
         }
     }
 }
 
 @Composable
-fun daysWeatherForecast(city: MutableState<String>, context: Context){
-    Card {
-        Row(
+fun comfortaaMediumText(text: String){
+    Text(text = text, style = TextStyle(
+        fontFamily = comfortaaMedium,
+        fontSize = 16.sp
+    ))
+}
+
+@Composable
+fun daysWeatherForecast(city: MutableState<String>, context: Context) {
+    Box(modifier = Modifier
+        .padding(start = 5.dp, end = 5.dp)
+        .clip(shape = RoundedCornerShape(13.dp))) {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(cardBackGroundColor)
+                .padding(10.dp)
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(0.dp)
+            ) {
+                items(3) {
+                    dayCard()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun dayCard(){
+    Card(modifier = Modifier
+        .padding(top = 5.dp)
+        .background(customGrayColor),
+        colors = CardDefaults.cardColors(containerColor = customGrayColor)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = "Дата")
-                Text(text = "Состояние")
+                comfortaaMediumText(text = "Дата")
+                comfortaaMediumText(text = "Состояние")
             }
             AsyncImage(model = "https:", contentDescription = "Weather_Icon",
-                modifier = Modifier.size(30.dp))
-            Text(text = "°C")
+                modifier = Modifier.size(50.dp))
+            comfortaaMediumText(text = "°C")
         }
     }
 }
 
 @Composable
 fun defaultWeatherForecastCard(){
-    Column(
+    Card(
         modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        colors = CardDefaults.cardColors(containerColor = customGrayColor)
     ) {
-        val image = painterResource(id = R.drawable.earth)
-        Image(painter = image, contentDescription = "Нет результатов",
-            modifier = Modifier.padding(end = 35.dp, bottom = 20.dp))
-        Text(text = "Нечего показывать!", textAlign = TextAlign.Center,
-            style = TextStyle(fontFamily = comfortaaMedium, fontSize = 20.sp))
-        Text(text = "Для начала, выберите город", style = TextStyle(
-            fontFamily = comfortaaMedium, fontSize = 20.sp))
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            val image = painterResource(id = R.drawable.earth)
+            Image(painter = image, contentDescription = "Нет результатов",
+                modifier = Modifier.padding(end = 35.dp, bottom = 20.dp))
+            Text(text = "Нечего показывать!", textAlign = TextAlign.Center,
+                style = TextStyle(fontFamily = comfortaaMedium, fontSize = 20.sp))
+            Text(text = "Для начала, выберите город", style = TextStyle(
+                fontFamily = comfortaaMedium, fontSize = 20.sp))
+        }
     }
 }
