@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,8 +60,8 @@ val comfortaaMedium = FontFamily(
 
 val mainColor = "#fcfcfc".toColor()
 val btnCityColor = "#85d249".toColor()
-val customGrayColor = "#e4e4e4".toColor()
-val cardBackGroundColor = "#d3d3d3".toColor()
+val customGrayColor = "#f1f1f1".toColor()
+val cardBackGroundColor = "#e1e1e1".toColor()
 
 val API_KEY = "36001eaeaf8d4697a29115746230910"
 val citiesList = listOf<String>(
@@ -178,48 +179,80 @@ fun citySelector(context: Context) {
     }
 }
 
-fun getResult(city: MutableState<String>, context: Context): WeatherModel?{
-    var weatherData: WeatherModel? = null
-    var url = "https://api.weatherapi.com/v1/current.json?q=${city.value}&key=$API_KEY"
+private fun getResult(city: MutableState<String>, context: Context,
+              daysList: MutableState<List<WeatherModel>>,
+              currentDay: MutableState<WeatherModel>){
+    var url = "https://api.weatherapi.com/v1/forecast.json?key=$API_KEY&q=${city.value}&days=3&aqi=no&alerts=no"
     val queue = Volley.newRequestQueue(context)
     val request = StringRequest(
         com.android.volley.Request.Method.GET,
         url,
         {
-            response -> weatherData = parseCurrentData(response)
-            Log.d("WeatherData", "$weatherData")
+            response -> var list = parseData(response)
+                        currentDay.value = list[0]
+                        daysList.value = list
         },
         {
             Log.d("VolleyLog", "Error: $it")
         }
     )
     queue.add(request)
-    return weatherData
 }
 
-fun parseCurrentData(response: String) : WeatherModel{
-    //if (response == null) return listOf()
-    //var listData = ArrayList<WeatherModel>()
+fun parseData(response: String) : List<WeatherModel>{
+    if (response == null) return listOf()
+    var list = ArrayList<WeatherModel>()
 
     val mainObject = JSONObject(response)
-
+    val days = mainObject.getJSONObject("forecast").getJSONArray("forecastday")
     val current = mainObject.getJSONObject("current")
-    var weatherObject = WeatherModel(
-        current.getString("temp_c"),
-        current.getJSONObject("condition").getString("text"),
-        current.getJSONObject("condition").getString("icon"),
-        current.getString("wind_dir"),
-        "",
-        ""
+    val country = mainObject.getJSONObject("location").getString("country")
+    val region = mainObject.getJSONObject("location").getString("region")
+
+    for (i in 0 until days.length()){
+        var item = days[i] as JSONObject
+        list.add(
+            WeatherModel(
+                country,
+                region,
+                "",
+                "",
+                item.getJSONObject("day").getJSONObject("condition")
+                    .getString("text"),
+                item.getJSONObject("day").getJSONObject("condition")
+                    .getString("icon"),
+                "",
+                item.getJSONObject("day").getString("mintemp_c"),
+                item.getJSONObject("day").getString("maxtemp_c"),
+                item.getJSONArray("hour").toString()
+            )
+        )
+    }
+    list[0] = list[0].copy(
+        feelsLike = current.getString("feelslike_c"),
+        currentTemp = current.getString("temp_c"),
+        wind_dir = current.getString("wind_dir")
     )
-    return weatherObject
+    return list
 }
 
 @Composable
 fun weatherForecastArea(city: MutableState<String>, context: Context) {
+    var daysList = remember {
+        mutableStateOf(listOf<WeatherModel>())
+    }
+
+    var currentDay = remember {
+        mutableStateOf(WeatherModel(
+            "","","","","","","",
+            "","",""
+        ))
+    }
+
     if (city.value == "Выбрать город") defaultWeatherForecastCard()
     //else getResult(city, context)
     else {
+        getResult(city, context, daysList, currentDay)
         LazyRow(
             modifier = Modifier
                 .fillMaxSize()
@@ -230,14 +263,14 @@ fun weatherForecastArea(city: MutableState<String>, context: Context) {
                         .fillParentMaxHeight()
                         .fillParentMaxWidth()
                 ) {
-                    currentWeatherForecastCard(city, context)
+                    currentWeatherForecastCard(city, context, currentDay)
                 }
                 Box(
                     modifier = Modifier
                         .fillParentMaxHeight()
                         .fillParentMaxWidth()
                 ) {
-                    daysWeatherForecast(city, context)
+                    daysWeatherForecast(city, context, daysList)
                 }
             }
         }
@@ -245,8 +278,9 @@ fun weatherForecastArea(city: MutableState<String>, context: Context) {
 }
 
 @Composable
-fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
-    var weatherObject = getResult(city, context)
+fun currentWeatherForecastCard(city: MutableState<String>, context: Context,
+                               currentDay: MutableState<WeatherModel>){
+    //var weatherObject = getResult(city, context, daysList)
     Box(modifier = Modifier
         .fillMaxSize()
         .clip(shape = RoundedCornerShape(10.dp))
@@ -263,7 +297,8 @@ fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                AsyncImage(model = "https:", contentDescription = "Weather_icon",
+                AsyncImage(model = "https:${currentDay.value.icon}",
+                    contentDescription = "Weather_icon",
                     modifier = Modifier.size(90.dp))
             }
             Row(
@@ -273,7 +308,7 @@ fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text(text = "30°C", style = TextStyle(
+                Text(text = "${currentDay.value.currentTemp}°C", style = TextStyle(
                     fontFamily = comfortaaBold,
                     fontSize = 26.sp
                 ))
@@ -285,8 +320,28 @@ fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                comfortaaMediumText(text = "Страна:")
+                comfortaaMediumText(text = "${currentDay.value.country}")
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                comfortaaMediumText(text = "Регион:")
+                comfortaaMediumText(text = "${currentDay.value.region}")
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 comfortaaMediumText(text = "Погодные условия:")
-                comfortaaMediumText(text = "знач.")
+                comfortaaMediumText(text = "${currentDay.value.condition}")
             }
             Row(
                 modifier = Modifier
@@ -296,7 +351,17 @@ fun currentWeatherForecastCard(city: MutableState<String>, context: Context){
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 comfortaaMediumText(text = "Направление ветра:")
-                comfortaaMediumText(text = "знач.")
+                comfortaaMediumText(text = "${currentDay.value.wind_dir}")
+            }
+            Row(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                comfortaaMediumText(text = "Ощущается как:")
+                comfortaaMediumText(text = "${currentDay.value.feelsLike}")
             }
         }
     }
@@ -311,7 +376,8 @@ fun comfortaaMediumText(text: String){
 }
 
 @Composable
-fun daysWeatherForecast(city: MutableState<String>, context: Context) {
+fun daysWeatherForecast(city: MutableState<String>, context: Context,
+                        daysList: MutableState<List<WeatherModel>>) {
     Box(modifier = Modifier
         .padding(start = 5.dp, end = 5.dp)
         .clip(shape = RoundedCornerShape(13.dp))) {
@@ -326,8 +392,10 @@ fun daysWeatherForecast(city: MutableState<String>, context: Context) {
                     .fillMaxSize()
                     .padding(0.dp)
             ) {
-                items(3) {
-                    dayCard()
+                itemsIndexed(
+                    daysList.value
+                ) { _, item ->
+                    dayCard(item)
                 }
             }
         }
@@ -335,7 +403,7 @@ fun daysWeatherForecast(city: MutableState<String>, context: Context) {
 }
 
 @Composable
-fun dayCard(){
+fun dayCard(weatherObject: WeatherModel){
     Card(modifier = Modifier
         .padding(top = 5.dp)
         .background(customGrayColor),
@@ -349,11 +417,11 @@ fun dayCard(){
         ) {
             Column {
                 comfortaaMediumText(text = "Дата")
-                comfortaaMediumText(text = "Состояние")
+                comfortaaMediumText(text = "${weatherObject.condition}")
             }
-            AsyncImage(model = "https:", contentDescription = "Weather_Icon",
+            AsyncImage(model = "https:${weatherObject.icon}", contentDescription = "Weather_Icon",
                 modifier = Modifier.size(50.dp))
-            comfortaaMediumText(text = "°C")
+            comfortaaMediumText(text = "${weatherObject.mintemp_c}°C")
         }
     }
 }
